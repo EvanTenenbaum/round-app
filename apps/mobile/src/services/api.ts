@@ -155,6 +155,21 @@ class APIClient {
   async requestMatching(): Promise<void> {
     return this.request('/matching/request', { method: 'POST' })
   }
+
+  async markAllNotificationsRead(): Promise<void> {
+    await this.request('/notifications/read-all', { method: 'POST' })
+  }
+
+  async registerPushToken(token: string): Promise<void> {
+    await this.request('/users/me/push-token', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    })
+  }
+
+  async deregisterPushToken(): Promise<void> {
+    await this.request('/users/me/push-token', { method: 'DELETE' })
+  }
 }
 
 export const api = new APIClient()

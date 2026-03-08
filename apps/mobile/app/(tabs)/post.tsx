@@ -24,7 +24,7 @@ const ALL_DIETARY: DietaryRestriction[] = [
 
 export default function PostMealScreen() {
   const { circles } = useAppStore()
-  const activePod = circles[0]
+  const activePod = circles[0] // first active circle
   const queryClient = useQueryClient()
 
   const [title, setTitle] = useState('')
@@ -42,6 +42,11 @@ export default function PostMealScreen() {
   const [pickupLocation, setPickupLocation] = useState('')
   const [showTimePicker, setShowTimePicker] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [allergenNotes, setAllergenNotes] = useState('')
+  const [pickupNotes, setPickupNotes] = useState('')
+  const [containerPolicy, setContainerPolicy] = useState(
+    circles[0]?.containerPolicy ?? 'I provide containers — keep them, no return needed'
+  )
 
   const postMutation = useMutation({
     mutationFn: (data: any) => api.createMeal(data),
@@ -118,6 +123,9 @@ export default function PostMealScreen() {
       servingsAvailable: parseInt(servings, 10) || 4,
       pickupTime: pickupTime.toISOString(),
       pickupLocation: pickupLocation.trim(),
+      pickupNotes: pickupNotes.trim() || undefined,
+      allergenNotes: allergenNotes.trim() || undefined,
+      containerPolicy: containerPolicy.trim() || undefined,
       cookDate: cookDate.toISOString(),
     })
   }
@@ -272,6 +280,52 @@ export default function PostMealScreen() {
           />
         </View>
 
+        {/* Pickup notes */}
+        <View style={styles.field}>
+          <Text style={CommonStyles.label}>Pickup notes (optional)</Text>
+          <TextInput
+            style={CommonStyles.input}
+            value={pickupNotes}
+            onChangeText={setPickupNotes}
+            placeholder="e.g. Ring doorbell, knock twice, leave cooler on porch"
+            placeholderTextColor={Colors.gray400}
+            maxLength={300}
+          />
+        </View>
+
+        {/* Allergen notes — important for safety */}
+        <View style={styles.field}>
+          <Text style={CommonStyles.label}>
+            Allergen notes
+            <Text style={{ color: Colors.amber, fontWeight: '400' }}> — check your circle's restrictions</Text>
+          </Text>
+          <TextInput
+            style={[CommonStyles.input, { minHeight: 70, textAlignVertical: 'top' }]}
+            value={allergenNotes}
+            onChangeText={setAllergenNotes}
+            placeholder="e.g. Contains tree nuts. Nut-free prep area used. Does not contain peanuts."
+            placeholderTextColor={Colors.gray400}
+            multiline
+            maxLength={500}
+          />
+          <Text style={{ fontSize: 11, color: Colors.gray400, marginTop: 4 }}>
+            Your circle members with allergies are counting on accurate allergen info.
+          </Text>
+        </View>
+
+        {/* Container policy */}
+        <View style={styles.field}>
+          <Text style={CommonStyles.label}>Container policy</Text>
+          <TextInput
+            style={CommonStyles.input}
+            value={containerPolicy}
+            onChangeText={setContainerPolicy}
+            placeholder="How should pickup containers work?"
+            placeholderTextColor={Colors.gray400}
+            maxLength={200}
+          />
+        </View>
+
         {/* Submit */}
         <TouchableOpacity
           style={[CommonStyles.primaryButton, postMutation.isPending && styles.disabled, { marginTop: Spacing.lg }]}
@@ -279,7 +333,7 @@ export default function PostMealScreen() {
           disabled={postMutation.isPending}
         >
           <Text style={CommonStyles.primaryButtonText}>
-            {postMutation.isPending ? 'Posting...' : '🍳 Post meal to pod'}
+            {postMutation.isPending ? 'Posting...' : '🍳 Post meal to circle'}
           </Text>
         </TouchableOpacity>
 

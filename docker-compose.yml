@@ -2,28 +2,39 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:16-alpine
-    container_name: hearth-db
+    image: postgres:15-alpine
     environment:
-      POSTGRES_USER: hearth
-      POSTGRES_PASSWORD: hearth_local
-      POSTGRES_DB: hearth
+      POSTGRES_DB: round_dev
+      POSTGRES_USER: round
+      POSTGRES_PASSWORD: round_local
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
-      - hearth_pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U hearth']
+      test: ["CMD-SHELL", "pg_isready -U round -d round_dev"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: hearth-redis
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://round:round_local@postgres:5432/round_dev
+      NODE_ENV: development
+      PORT: 4000
     ports:
-      - '6379:6379'
-    # Redis used for: rate limiting, session caching (optional in v1)
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app/apps/api
+      - ./packages:/app/packages
+      - /app/node_modules
+    command: sh -c "yarn workspace @round/api db:migrate:deploy && yarn workspace @round/api dev"
 
 volumes:
-  hearth_pgdata:
+  postgres_data:

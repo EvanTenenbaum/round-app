@@ -1,144 +1,188 @@
-import React, { useEffect } from 'react'
+import { useCallback } from 'react'
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  RefreshControl,
-  StyleSheet,
-  Image,
+  View, Text, ScrollView, TouchableOpacity,
+  RefreshControl, StyleSheet, ActivityIndicator,
 } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import { Image } from 'expo-image'
 import { api } from '../services/api'
 import { useAppStore } from '../store/app.store'
 import { MealCard as MealCardType, DayOfWeek, DAY_LABELS } from '@round/shared'
-import { Colors, Typography, Spacing } from '../styles/theme'
+import { Colors } from '../styles/theme'
 
 export default function HomeScreen() {
-  const { user, circles } = useAppStore()
-  const activePodId = circles[0]?.id // show first circle on home
+  const { user, circles, currentCircle } = useAppStore()
+  const activeCircleId = currentCircle?.id || circles[0]?.id
 
-  const {
-    data: meals,
-    isLoading,
-    refetch,
-    isRefetching,
-  } = useQuery({
-    queryKey: ['meals', activePodId],
-    queryFn: () => activePodId ? api.getMealsForPod(activePodId) : Promise.resolve([]),
-    enabled: !!activePodId,
-    staleTime: 60_000, // 1 min
+  const { data: meals, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ['meals', activeCircleId],
+    queryFn: () => activeCircleId ? api.getMealsForCircle(activeCircleId) : Promise.resolve([]),
+    enabled: !!activeCircleId,
+    staleTime: 60_000,
   })
 
+  const activeCircle = circles.find(c => c.id === activeCircleId) || circles[0]
+  const myTurn = activeCircle?.myTurn as DayOfWeek | undefined
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
   const todayMeals = meals?.filter(m => {
-    const mealDate = new Date(m.cookDate)
-    const today = new Date()
-    return mealDate.toDateString() === today.toDateString()
-  }) || []
+    const d = new Date(m.cookDate)
+    d.setHours(0, 0, 0, 0)
+    return d.getTime() === today.getTime()
+  }) ?? []
 
   const upcomingMeals = meals?.filter(m => {
-    const mealDate = new Date(m.cookDate)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    return mealDate > today
-  }).slice(0, 4) || []
+    const d = new Date(m.cookDate)
+    d.setHours(0, 0, 0, 0)
+    return d > today
+  }).slice(0, 5) ?? []
 
-  const myCircleMembership = circles[0]
-  const myNextCookDay = myCircleMembership?.myTurn
+  const isMyTurnToday = myTurn && DAY_LABELS[myTurn] &&
+    new Date().toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase() === myTurn.slice(0, 3)
 
-  if (!circles.length) {
-    return <NoPodState />
+  const isMyTurnTomorrow = myTurn &&
+    tomorrow.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase() === myTurn.slice(0, 3)
+
+  const hasNoShowWarning = circles.some(c => (c as any).noShowCount > 0)
+
+  if (!circles.length) return <NoCircleState />
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator color={Colors.orange} />
+      </View>
+    )
   }
 
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.orange} />
-      }
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.orange} />}
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
-      <LinearGradient
-        colors={[Colors.cream, Colors.creamLight]}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
           <View>
-            <Text style={styles.greeting}>Good {getTimeOfDay()}, {user?.name?.split(' ')[0]}! 👋</Text>
-            <Text style={styles.subgreeting}>{circles[0]?.name}</Text>
+            <Text style={styles.greeting}>
+              {getGreeting()}, {user?.name?.split(' ')[0]}
+            </Text>
+            <Text style={styles.circleName}>{activeCircle?.name}</Text>
           </View>
           <TouchableOpacity onPress={() => router.push('/notifications')}>
-            <Ionicons name="notifications-outline" size={24} color={Colors.brown} />
+            <Ionicons name="notifications-outline" size={24} color={Colors.gray700} />
           </TouchableOpacity>
         </View>
 
-        {/* Your next cook day */}
-        {myNextCookDay && (
-          <View style={styles.cookDayBanner}>
-            <Ionicons name="flame-outline" size={18} color={Colors.orange} />
-            <Text style={styles.cookDayText}>
-              Your cook day: <Text style={{ fontWeight: '700' }}>{DAY_LABELS[myNextCookDay as DayOfWeek]}</Text>
+        {/* Your turn banner */}
+        {isMyTurnToday && (
+          <View style={[styles.turnBanner, { backgroundColor: Colors.orange }]}>
+            <Ionicons name="flame" size={16} color={Colors.white} />
+            <Text style={[styles.turnBannerText, { color: Colors.white }]}>
+              It's your turn to cook today
+            </Text>
+            <TouchableOpacity
+              style={styles.turnBannerCta}
+              onPress={() => router.push('/(tabs)/post')}
+            >
+              <Text style={styles.turnBannerCtaText}>Post meal</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {!isMyTurnToday && isMyTurnTomorrow && (
+          <View style={[styles.turnBanner, { backgroundColor: Colors.orange + '15' }]}>
+            <Ionicons name="calendar-outline" size={16} color={Colors.orange} />
+            <Text style={[styles.turnBannerText, { color: Colors.orange }]}>
+              Your turn is tomorrow — {DAY_LABELS[myTurn!]}
             </Text>
           </View>
         )}
-      </LinearGradient>
+        {!isMyTurnToday && !isMyTurnTomorrow && myTurn && (
+          <View style={styles.myTurnRow}>
+            <Ionicons name="restaurant-outline" size={14} color={Colors.gray400} />
+            <Text style={styles.myTurnText}>
+              You cook {DAY_LABELS[myTurn]}s
+            </Text>
+          </View>
+        )}
+      </View>
 
-      {/* Today's meals */}
+      {/* No-show warning */}
+      {hasNoShowWarning && (
+        <View style={styles.warnBanner}>
+          <Ionicons name="warning-outline" size={14} color={Colors.amber} />
+          <Text style={styles.warnText}>
+            You've missed a recent turn. Your circle is counting on you.
+          </Text>
+        </View>
+      )}
+
+      {/* Today */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Today</Text>
+        <Text style={styles.sectionTitle}>Tonight</Text>
         {todayMeals.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No meals posted for today yet.</Text>
-            <TouchableOpacity
-              style={styles.postButton}
-              onPress={() => router.push('/post-meal')}
-            >
-              <Text style={styles.postButtonText}>Post a meal</Text>
-            </TouchableOpacity>
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>
+              {isMyTurnToday
+                ? "You haven't posted your meal yet."
+                : "No meal posted for tonight yet."}
+            </Text>
+            {isMyTurnToday && (
+              <TouchableOpacity
+                style={styles.postBtn}
+                onPress={() => router.push('/(tabs)/post')}
+              >
+                <Text style={styles.postBtnText}>Post your meal</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           todayMeals.map(meal => (
-            <MealCard key={meal.id} meal={meal} onPress={() => router.push(`/meals/${meal.id}`)} />
+            <HomeMealCard
+              key={meal.id}
+              meal={meal}
+              myId={user?.id}
+              onPress={() => router.push(`/meals/${meal.id}`)}
+            />
           ))
         )}
       </View>
 
-      {/* Upcoming this week */}
+      {/* This week */}
       {upcomingMeals.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>This week</Text>
           {upcomingMeals.map(meal => (
-            <MealCard key={meal.id} meal={meal} onPress={() => router.push(`/meals/${meal.id}`)} />
+            <HomeMealCard
+              key={meal.id}
+              meal={meal}
+              myId={user?.id}
+              onPress={() => router.push(`/meals/${meal.id}`)}
+            />
           ))}
         </View>
       )}
 
       {/* Quick actions */}
-      <View style={styles.quickActions}>
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => router.push('/post-meal')}
-        >
-          <Ionicons name="add-circle" size={28} color={Colors.orange} />
-          <Text style={styles.actionLabel}>Post Meal</Text>
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(tabs)/post')}>
+          <Ionicons name="add-circle" size={26} color={Colors.orange} />
+          <Text style={styles.actionLabel}>Post meal</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => router.push('/circles')}
-        >
-          <Ionicons name="people" size={28} color={Colors.green} />
-          <Text style={styles.actionLabel}>My Pod</Text>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(tabs)/circle')}>
+          <Ionicons name="people" size={26} color={Colors.green} />
+          <Text style={styles.actionLabel}>My circle</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => router.push('/schedule')}
-        >
-          <Ionicons name="calendar" size={28} color={Colors.brown} />
-          <Text style={styles.actionLabel}>Schedule</Text>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/notifications')}>
+          <Ionicons name="notifications-outline" size={26} color={Colors.gray700} />
+          <Text style={styles.actionLabel}>Activity</Text>
         </TouchableOpacity>
       </View>
 
@@ -147,137 +191,125 @@ export default function HomeScreen() {
   )
 }
 
-function MealCard({ meal, onPress }: { meal: MealCardType; onPress: () => void }) {
-  const claimed = meal.mySave a seat != null
-  const full = meal.servingsClaimed >= meal.servingsAvailable
+function HomeMealCard({ meal, myId, onPress }: { meal: MealCardType; myId?: string; onPress: () => void }) {
+  const hasSeat = !!meal.mySeat
+  const isMine = meal.cookId === myId
+  const isFull = meal.status === 'FULL'
+  const seatsLeft = meal.servingsAvailable - meal.servingsSaved
 
   return (
-    <TouchableOpacity style={styles.mealCard} onPress={onPress} activeOpacity={0.8}>
-      {meal.photo && (
-        <Image source={{ uri: meal.photo }} style={styles.mealPhoto} />
+    <TouchableOpacity style={styles.mealCard} onPress={onPress} activeOpacity={0.85}>
+      {meal.photo ? (
+        <Image source={{ uri: meal.photo }} style={styles.mealPhoto} contentFit="cover" />
+      ) : (
+        <View style={[styles.mealPhoto, styles.mealPhotoEmpty]}>
+          <Ionicons name="restaurant" size={28} color={Colors.gray300} />
+        </View>
       )}
-      <View style={styles.mealInfo}>
-        <View style={styles.mealHeader}>
-          <Text style={styles.mealTitle}>{meal.title}</Text>
-          {claimed && (
-            <View style={styles.claimedBadge}>
-              <Text style={styles.claimedBadgeText}>✓ Claimed</Text>
+      <View style={styles.mealBody}>
+        <View style={styles.mealTitleRow}>
+          <Text style={styles.mealTitle} numberOfLines={1}>{meal.title}</Text>
+          {hasSeat && (
+            <View style={styles.seatBadge}>
+              <Text style={styles.seatBadgeText}>✓ Seat saved</Text>
             </View>
           )}
-          {!claimed && full && (
-            <View style={[styles.claimedBadge, { backgroundColor: Colors.brown + '20' }]}>
-              <Text style={[styles.claimedBadgeText, { color: Colors.brown }]}>Full</Text>
+          {isMine && (
+            <View style={[styles.seatBadge, { backgroundColor: Colors.orange + '20' }]}>
+              <Text style={[styles.seatBadgeText, { color: Colors.orange }]}>Your meal</Text>
+            </View>
+          )}
+          {!hasSeat && !isMine && isFull && (
+            <View style={[styles.seatBadge, { backgroundColor: Colors.gray100 }]}>
+              <Text style={[styles.seatBadgeText, { color: Colors.gray500 }]}>Full</Text>
             </View>
           )}
         </View>
-        <View style={styles.mealMeta}>
-          <Text style={styles.cookName}>by {meal.cook.name}</Text>
-          <Text style={styles.mealTime}>
-            {formatPickupTime(meal.pickupTime)} · {meal.servingsAvailable - meal.servingsClaimed} left
+        <Text style={styles.mealMeta}>
+          by {meal.cook.name} · {formatTime(meal.pickupTime)}
+        </Text>
+        {!isFull && !hasSeat && !isMine && (
+          <Text style={styles.seatsLeft}>{seatsLeft} seat{seatsLeft !== 1 ? 's' : ''} left</Text>
+        )}
+        {meal.allergenNotes && (
+          <Text style={styles.allergenNote} numberOfLines={1}>
+            ⚠ {meal.allergenNotes}
           </Text>
-        </View>
-        {meal.cuisineType && (
-          <Text style={styles.cuisineTag}>{meal.cuisineType}</Text>
         )}
       </View>
     </TouchableOpacity>
   )
 }
 
-function NoPodState() {
+function NoCircleState() {
   return (
-    <View style={styles.noPodContainer}>
-      <Text style={styles.noPodEmoji}>🏠</Text>
-      <Text style={styles.noPodTitle}>Welcome to Round!</Text>
-      <Text style={styles.noPodSubtitle}>
-        Join a meal co-op circle with neighbors or friends to start sharing home-cooked meals.
+    <View style={styles.noCircleContainer}>
+      <Text style={styles.noCircleEmoji}>⭕</Text>
+      <Text style={styles.noCircleTitle}>Welcome to Round</Text>
+      <Text style={styles.noCircleBody}>
+        Start a dinner circle with your neighbors or join one with an invite code.
+        Cook once a week. Eat home-cooked meals the rest.
       </Text>
-      <TouchableOpacity style={styles.primaryButton} onPress={() => router.push('/circles/new')}>
-        <Text style={styles.primaryButtonText}>Create a Pod</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/circles/join')}>
-        <Text style={styles.secondaryButtonText}>Join with Invite Code</Text>
+      <TouchableOpacity
+        style={styles.primaryBtn}
+        onPress={() => router.push('/onboarding')}
+      >
+        <Text style={styles.primaryBtnText}>Get started</Text>
       </TouchableOpacity>
     </View>
   )
 }
 
-function getTimeOfDay(): string {
-  const hour = new Date().getHours()
-  if (hour < 12) return 'morning'
-  if (hour < 17) return 'afternoon'
-  return 'evening'
+function getGreeting() {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
 }
 
-function formatPickupTime(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.creamLight },
-  header: { padding: Spacing.lg, paddingTop: 60, paddingBottom: Spacing.md },
-  headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  greeting: { fontSize: 22, fontWeight: '700', color: Colors.brown },
-  subgreeting: { fontSize: 14, color: Colors.brownLight, marginTop: 2 },
-  cookDayBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginTop: Spacing.sm, backgroundColor: Colors.orange + '15',
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
-  },
-  cookDayText: { fontSize: 14, color: Colors.brown },
-  section: { padding: Spacing.lg, paddingBottom: 0 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: Colors.brown, marginBottom: Spacing.sm },
-  emptyState: { alignItems: 'center', padding: Spacing.xl, backgroundColor: Colors.white, borderRadius: 16 },
-  emptyText: { fontSize: 14, color: Colors.brownLight, marginBottom: Spacing.md },
-  postButton: { backgroundColor: Colors.orange, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 },
-  postButtonText: { color: Colors.white, fontWeight: '600', fontSize: 14 },
-  mealCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    marginBottom: Spacing.sm,
-    overflow: 'hidden',
-    shadowColor: Colors.brown,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  mealPhoto: { width: '100%', height: 160, backgroundColor: Colors.creamLight },
-  mealInfo: { padding: Spacing.md },
-  mealHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  mealTitle: { fontSize: 16, fontWeight: '600', color: Colors.brown, flex: 1 },
-  claimedBadge: {
-    backgroundColor: Colors.green + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10,
-  },
-  claimedBadgeText: { fontSize: 11, fontWeight: '600', color: Colors.green },
-  mealMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
-  cookName: { fontSize: 13, color: Colors.brownLight },
-  mealTime: { fontSize: 13, color: Colors.brownLight },
-  cuisineTag: { fontSize: 11, color: Colors.orange, marginTop: 4, fontWeight: '500' },
-  quickActions: {
-    flexDirection: 'row', justifyContent: 'space-around',
-    padding: Spacing.lg, paddingTop: Spacing.xl,
-  },
-  actionCard: {
-    alignItems: 'center', backgroundColor: Colors.white,
-    padding: Spacing.md, borderRadius: 16, width: 90,
-    shadowColor: Colors.brown, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
-  },
-  actionLabel: { fontSize: 12, fontWeight: '500', color: Colors.brown, marginTop: 6 },
-  noPodContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, paddingTop: 80 },
-  noPodEmoji: { fontSize: 64, marginBottom: Spacing.md },
-  noPodTitle: { fontSize: 24, fontWeight: '700', color: Colors.brown, marginBottom: Spacing.sm },
-  noPodSubtitle: { fontSize: 15, color: Colors.brownLight, textAlign: 'center', marginBottom: Spacing.xl, lineHeight: 22 },
-  primaryButton: {
-    backgroundColor: Colors.orange, paddingHorizontal: 40, paddingVertical: 14,
-    borderRadius: 28, width: '100%', alignItems: 'center', marginBottom: Spacing.sm,
-  },
-  primaryButtonText: { color: Colors.white, fontWeight: '700', fontSize: 16 },
-  secondaryButton: {
-    borderWidth: 2, borderColor: Colors.orange, paddingHorizontal: 40, paddingVertical: 14,
-    borderRadius: 28, width: '100%', alignItems: 'center',
-  },
-  secondaryButtonText: { color: Colors.orange, fontWeight: '700', fontSize: 16 },
+  container: { flex: 1, backgroundColor: Colors.cream },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.cream },
+  header: { backgroundColor: Colors.white, paddingTop: 60, paddingBottom: 16, paddingHorizontal: 20 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  greeting: { fontSize: 22, fontWeight: '700', color: Colors.gray900 },
+  circleName: { fontSize: 14, color: Colors.gray500, marginTop: 2 },
+  turnBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
+  turnBannerText: { flex: 1, fontSize: 14, fontWeight: '500' },
+  turnBannerCta: { backgroundColor: Colors.white + 'CC', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10 },
+  turnBannerCtaText: { fontSize: 13, fontWeight: '700', color: Colors.orange },
+  myTurnRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  myTurnText: { fontSize: 13, color: Colors.gray400 },
+  warnBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: Colors.amber + '15', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.amber + '30' },
+  warnText: { flex: 1, fontSize: 13, color: Colors.gray700, lineHeight: 18 },
+  section: { padding: 16, paddingBottom: 4 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: Colors.gray900, marginBottom: 10 },
+  emptyCard: { backgroundColor: Colors.white, borderRadius: 14, padding: 20, alignItems: 'center' },
+  emptyText: { fontSize: 14, color: Colors.gray500, textAlign: 'center', marginBottom: 12 },
+  postBtn: { backgroundColor: Colors.orange, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 20 },
+  postBtnText: { color: Colors.white, fontWeight: '600', fontSize: 14 },
+  mealCard: { backgroundColor: Colors.white, borderRadius: 14, marginBottom: 10, overflow: 'hidden' },
+  mealPhoto: { width: '100%', height: 140, backgroundColor: Colors.gray100 },
+  mealPhotoEmpty: { alignItems: 'center', justifyContent: 'center' },
+  mealBody: { padding: 12 },
+  mealTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  mealTitle: { flex: 1, fontSize: 15, fontWeight: '600', color: Colors.gray900 },
+  seatBadge: { backgroundColor: Colors.green + '20', borderRadius: 10, paddingVertical: 3, paddingHorizontal: 8 },
+  seatBadgeText: { fontSize: 11, fontWeight: '600', color: Colors.green },
+  mealMeta: { fontSize: 13, color: Colors.gray500 },
+  seatsLeft: { fontSize: 12, color: Colors.orange, marginTop: 3, fontWeight: '500' },
+  allergenNote: { fontSize: 11, color: Colors.amber, marginTop: 4 },
+  actions: { flexDirection: 'row', justifyContent: 'space-around', padding: 16, paddingTop: 20 },
+  actionBtn: { alignItems: 'center', backgroundColor: Colors.white, borderRadius: 14, padding: 14, width: 88, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
+  actionLabel: { fontSize: 12, fontWeight: '500', color: Colors.gray700, marginTop: 6 },
+  noCircleContainer: { flex: 1, backgroundColor: Colors.cream, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  noCircleEmoji: { fontSize: 64, marginBottom: 16 },
+  noCircleTitle: { fontSize: 26, fontWeight: '700', color: Colors.gray900, marginBottom: 10 },
+  noCircleBody: { fontSize: 15, color: Colors.gray600, textAlign: 'center', lineHeight: 22, marginBottom: 28 },
+  primaryBtn: { backgroundColor: Colors.orange, borderRadius: 14, paddingVertical: 16, paddingHorizontal: 40, width: '100%', alignItems: 'center' },
+  primaryBtnText: { color: Colors.white, fontSize: 17, fontWeight: '700' },
 })

@@ -13,6 +13,7 @@ import { mealRoutes } from './routes/meal.routes'
 import { reviewRoutes } from './routes/review.routes'
 import { notificationRoutes } from './routes/notification.routes'
 import { subscriptionRoutes } from './routes/subscription.routes'
+import { healthRoutes } from './routes/health'
 import { cronRoutes } from './routes/cron.routes'
 import { matchingRoutes } from './routes/matching.routes'
 import { errorHandler } from './middleware/error.middleware'
@@ -63,6 +64,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(notificationRoutes, { prefix: '/notifications' })
   await app.register(subscriptionRoutes, { prefix: '/subscriptions' })
   await app.register(matchingRoutes,     { prefix: '/matching' })
+  await app.register(healthRoutes)
   await app.register(cronRoutes,          { prefix: '/cron' })
 
   app.get('/health', async () => ({ status: 'ok', app: 'round', timestamp: new Date().toISOString() }))
