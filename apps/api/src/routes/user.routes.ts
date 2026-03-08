@@ -71,7 +71,7 @@ export async function userRoutes(app: FastifyInstance) {
       },
       orderBy: { joinedAt: 'desc' },
     })
-    return memberships.map(m => ({
+    return memberships.map((m: any) => ({
       id: m.circle.id,
       name: m.circle.name,
       description: m.circle.description,

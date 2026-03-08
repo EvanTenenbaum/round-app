@@ -35,7 +35,7 @@ export async function circleRoutes(app: FastifyInstance) {
     })
 
     if (user?.subscriptionTier === 'FREE') {
-      const activeCircles = user.circleMemberships.filter(m => m.status === 'ACTIVE').length
+      const activeCircles = user.circleMemberships.filter((m: any) => m.status === 'ACTIVE').length
       if (activeCircles >= 1) {
         return reply.code(403).send({
           error: 'Round (free) is limited to 1 circle. Upgrade to Round Member for unlimited circles.',
@@ -202,7 +202,7 @@ export async function circleRoutes(app: FastifyInstance) {
       include: { circleMemberships: true },
     })
     if (user?.subscriptionTier === 'FREE') {
-      const active = user.circleMemberships.filter(m => m.status === 'ACTIVE').length
+      const active = user.circleMemberships.filter((m: any) => m.status === 'ACTIVE').length
       if (active >= 1) {
         return reply.code(403).send({
           error: 'Round (free) is limited to 1 circle. Upgrade to Round Member.',

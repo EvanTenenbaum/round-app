@@ -7,11 +7,11 @@ interface AppState {
   setUser: (user: UserProfile | null) => void
   updateUser: (updates: Partial<UserProfile>) => void
 
-  // Pods
-  pods: CircleSummary[]
-  setPods: (pods: CircleSummary[]) => void
-  activePodId: string | null
-  setActivePodId: (id: string | null) => void
+  // Circles (canonical name; circles/pods aliases both work)
+  circles: CircleSummary[]
+  setCircles: (circles: CircleSummary[]) => void
+  currentCircle: CircleSummary | null
+  setCurrentCircle: (circle: CircleSummary | null) => void
 
   // Notifications
   notifications: NotificationItem[]
@@ -25,7 +25,7 @@ interface AppState {
   setIsOnboarding: (v: boolean) => void
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>((set) => ({
   user: null,
   setUser: user => set({ user }),
   updateUser: updates =>
@@ -33,15 +33,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       user: state.user ? { ...state.user, ...updates } : null,
     })),
 
-  pods: [],
-  setPods: pods => set({ pods }),
-  activePodId: null,
-  setActivePodId: id => set({ activePodId: id }),
+  circles: [],
+  setCircles: circles => set({ circles, currentCircle: circles[0] ?? null }),
+  currentCircle: null,
+  setCurrentCircle: circle => set({ currentCircle: circle }),
 
   notifications: [],
   setNotifications: notifications => {
-    const unread = notifications.filter(n => !n.read).length
-    set({ notifications, unreadCount: unread })
+    const unreadCount = notifications.filter(n => !n.read).length
+    set({ notifications, unreadCount })
   },
   unreadCount: 0,
   incrementUnread: () => set(state => ({ unreadCount: state.unreadCount + 1 })),

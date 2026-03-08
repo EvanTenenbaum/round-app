@@ -262,7 +262,7 @@ export default function PostMealScreen() {
             <DateTimePicker
               value={pickupTime}
               mode="time"
-              onChange={(_, date) => { setShowTimePicker(false); if (date) setPickupTime(date) }}
+              onChange={(_: any, date: Date | undefined) => { setShowTimePicker(false); if (date) setPickupTime(date) }}
             />
           )}
         </View>

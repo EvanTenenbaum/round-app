@@ -19,7 +19,7 @@ export class CircleService {
   async createCircle(ownerId: string, input: CreateCircleInput) {
     const inviteCode = this.generateInviteCode()
 
-    return this.db.$transaction(async tx => {
+    return this.db.$transaction(async (tx: any) => {
       const circle = await tx.circle.create({
         data: {
           ...input,
@@ -68,10 +68,10 @@ export class CircleService {
 
     if (!circle) return null
 
-    const myMembership = circle.memberships.find(m => m.userId === requestingUserId)
+    const myMembership = circle.memberships.find((m: any) => m.userId === requestingUserId)
     if (!myMembership && !circle.isPublic) return null
 
-    const memberIds = circle.memberships.map(m => m.userId)
+    const memberIds = circle.memberships.map((m: any) => m.userId)
     const reviewAggs = await this.db.review.groupBy({
       by: ['revieweeId'],
       where: { revieweeId: { in: memberIds } },
@@ -79,10 +79,10 @@ export class CircleService {
       _count: { rating: true },
     })
     const reviewMap = Object.fromEntries(
-      reviewAggs.map(r => [r.revieweeId, { avg: r._avg.rating, count: r._count.rating }])
+      reviewAggs.map((r: any) => [r.revieweeId, { avg: r._avg.rating, count: r._count.rating }])
     )
 
-    const members = circle.memberships.map(m => ({
+    const members = circle.memberships.map((m: any) => ({
       id: m.id,
       userId: m.userId,
       name: m.user.name,
@@ -135,7 +135,7 @@ export class CircleService {
 
     return {
       schedule,
-      unassignedMembers: unassignedMembers.map(m => ({ userId: m.userId, name: m.user.name })),
+      unassignedMembers: unassignedMembers.map((m: any) => ({ userId: m.userId, name: m.user.name })),
       coverageDays: memberships.length,
       totalActiveMembers: memberships.length + unassignedMembers.length,
     }

@@ -27,12 +27,19 @@ export const Colors = {
   success: '#4A7C59',
 
   // Gray scale
+  gray50: '#FAFAFA',
   gray100: '#F7F5F3',
   gray200: '#EDE8E3',
   gray300: '#D9D0C8',
   gray400: '#BFB3A8',
   gray500: '#9E9088',
   gray600: '#6E625A',
+  gray700: '#4A4040',
+  gray800: '#2E2828',
+  gray900: '#1A1614',
+
+  // Semantic
+  amber: '#D97706',
 }
 
 export const Typography = {

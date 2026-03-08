@@ -98,7 +98,7 @@ export async function mealRoutes(app: FastifyInstance) {
     })
     if (!membership) return reply.code(403).send({ error: 'Not a member of this circle' })
 
-    const mySeat = meal.seats.find(s => s.dinerId === userId) || null
+    const mySeat = meal.seats.find((s: any) => s.dinerId === userId) || null
     return { ...meal, mySeat }
   })
 

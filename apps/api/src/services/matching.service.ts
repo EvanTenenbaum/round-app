@@ -1,4 +1,12 @@
-import { PrismaClient, User } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+
+type User = {
+  id: string
+  lat: number | null
+  lng: number | null
+  dietaryRestrictions: string[]
+  cookingStyles: string[]
+}
 
 export class MatchingService {
   constructor(private db: PrismaClient) {}
@@ -30,10 +38,10 @@ export class MatchingService {
     })
 
     const scored = nearbyCircles
-      .filter(c => c.memberships.length < c.maxSize)
-      .map(c => ({ circle: c, score: this.scoreCircleCompatibility(user, c) }))
-      .filter(({ score }) => score > 0.3)
-      .sort((a, b) => b.score - a.score)
+      .filter((c: any) => c.memberships.length < c.maxSize)
+      .map((c: any) => ({ circle: c, score: this.scoreCircleCompatibility(user, c) }))
+      .filter(({ score }: { score: number }) => score > 0.3)
+      .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
       .slice(0, 5)
 
     return scored
@@ -60,9 +68,9 @@ export class MatchingService {
     })
 
     const scored = candidates
-      .map(c => ({ user: c, score: this.scoreUserCompatibility(user, c) }))
-      .filter(({ score }) => score > 0.4)
-      .sort((a, b) => b.score - a.score)
+      .map((c: any) => ({ user: c, score: this.scoreUserCompatibility(user, c) }))
+      .filter(({ score }: { score: number }) => score > 0.4)
+      .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
       .slice(0, 10)
 
     return scored
@@ -76,7 +84,7 @@ export class MatchingService {
 
     // 1. Dietary compatibility (0–0.4)
     const circleDietary = new Set<string>(
-      circle.memberships.flatMap((m: any) => m.user.dietaryRestrictions)
+      circle.memberships.flatMap((m: any): string[] => m.user.dietaryRestrictions)
     )
     const userRestrictions = new Set(user.dietaryRestrictions)
     const incompatible = [...userRestrictions].filter(r => !circleDietary.has(r))
@@ -114,8 +122,8 @@ export class MatchingService {
       score += Math.max(0, 0.3 * (1 - dist / 2))
     }
 
-    const userStyles = new Set(user.cookingStyles)
-    const overlap = candidate.cookingStyles.filter(s => userStyles.has(s)).length
+    const userStyles = new Set(user.cookingStyles as string[])
+    const overlap = candidate.cookingStyles.filter((s: string) => userStyles.has(s)).length
     score += Math.min(0.2, overlap * 0.05)
 
     return Math.min(1, score)

@@ -212,7 +212,7 @@ export async function cronRoutes(app: FastifyInstance) {
           select: { reliabilityRate: true },
         })
         const avgReliability =
-          allMemberships.reduce((sum, x) => sum + x.reliabilityRate, 0) / allMemberships.length
+          allMemberships.reduce((sum: number, x: { reliabilityRate: number }) => sum + x.reliabilityRate, 0) / allMemberships.length
 
         await prisma.user.update({
           where: { id: m.userId },

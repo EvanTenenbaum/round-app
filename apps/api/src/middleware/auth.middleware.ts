@@ -6,6 +6,8 @@ declare module 'fastify' {
   interface FastifyRequest {
     userId?: string
     clerkUserId?: string
+    auth?: { userId: string; sessionId?: string }
+    rawBody?: Buffer | string
   }
 }
 

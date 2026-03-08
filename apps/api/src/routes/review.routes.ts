@@ -40,7 +40,7 @@ export async function reviewRoutes(app: FastifyInstance) {
       orderBy: { createdAt: 'desc' },
       take: 20,
     })
-    const avg = reviews.length ? reviews.reduce((a, r) => a + r.rating, 0) / reviews.length : null
+    const avg = reviews.length ? reviews.reduce((a: number, r: any) => a + r.rating, 0) / reviews.length : null
     return { reviews, averageRating: avg, totalReviews: reviews.length }
   })
 }

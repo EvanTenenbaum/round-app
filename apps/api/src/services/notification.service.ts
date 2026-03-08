@@ -1,4 +1,6 @@
-import { PrismaClient, NotificationType } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+
+type NotificationType = 'TURN_REMINDER' | 'TURN_CONFIRM_REQUEST' | 'SEAT_SAVED' | 'CIRCLE_INVITE' | 'CIRCLE_MEMBER_JOINED' | 'MEAL_POSTED' | 'PICKUP_REMINDER' | 'SYSTEM'
 import Expo from 'expo-server-sdk'
 
 const expo = new Expo()

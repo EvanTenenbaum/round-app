@@ -20,7 +20,7 @@ export async function subscriptionRoutes(app: FastifyInstance) {
       where: { id: userId },
       include: { subscription: true },
     })
-    const tier = user?.subscriptionTier || 'FREE'
+    const tier = (user?.subscriptionTier || 'FREE') as keyof typeof TIER_LABELS
     return {
       tier,
       label: TIER_LABELS[tier],
@@ -120,7 +120,7 @@ export async function subscriptionRoutes(app: FastifyInstance) {
 async function handleStripeEvent(event: Stripe.Event) {
   switch (event.type) {
     case 'checkout.session.completed': {
-      const session = event.data.object as Stripe.CheckoutSession
+      const session = event.data.object as Stripe.Checkout.Session
       const userId = session.metadata?.roundUserId
       const priceKey = session.metadata?.priceKey
       if (!userId) return

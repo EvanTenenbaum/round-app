@@ -115,6 +115,8 @@ export interface CircleSummary {
   myTurn?: DayOfWeek | null
   neighborhoodName?: string | null
   city?: string | null
+  containerPolicy?: string | null
+  noShowCount?: number
 }
 
 export interface CircleDetail extends CircleSummary {
@@ -181,4 +183,25 @@ export interface SubscriptionStatus {
   isFounding: boolean
   currentPeriodEnd?: string | null
   cancelAtPeriodEnd?: boolean
+}
+
+// Dietary constants
+export const DIETARY_LABELS: Record<string, string> = {
+  VEGETARIAN: 'Vegetarian',
+  VEGAN: 'Vegan',
+  GLUTEN_FREE: 'Gluten-Free',
+  DAIRY_FREE: 'Dairy-Free',
+  NUT_FREE: 'Nut-Free',
+  HALAL: 'Halal',
+  KOSHER: 'Kosher',
+}
+
+export const DIETARY_EMOJIS: Record<string, string> = {
+  VEGETARIAN: '🥦',
+  VEGAN: '🌱',
+  GLUTEN_FREE: '🌾',
+  DAIRY_FREE: '🥛',
+  NUT_FREE: '🥜',
+  HALAL: '☪️',
+  KOSHER: '✡️',
 }
