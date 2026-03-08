@@ -1,0 +1,15 @@
+# railway.toml — Hearth API deployment config for Railway.app
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "yarn workspace @hearth/api build && yarn workspace @hearth/api db:migrate:deploy"
+
+[deploy]
+startCommand = "yarn workspace @hearth/api start"
+healthcheckPath = "/health"
+healthcheckTimeout = 10
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "hearth-api"

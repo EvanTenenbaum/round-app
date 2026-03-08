@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hearth-db
+    environment:
+      POSTGRES_USER: hearth
+      POSTGRES_PASSWORD: hearth_local
+      POSTGRES_DB: hearth
+    ports:
+      - '5432:5432'
+    volumes:
+      - hearth_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U hearth']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: hearth-redis
+    ports:
+      - '6379:6379'
+    # Redis used for: rate limiting, session caching (optional in v1)
+
+volumes:
+  hearth_pgdata:

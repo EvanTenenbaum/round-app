@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+      - run: yarn install --frozen-lockfile
+      - run: yarn workspace @hearth/shared typecheck
+      - run: yarn workspace @hearth/api tsc --noEmit
+      - run: yarn workspace @hearth/web tsc --noEmit
+
+  test-api:
+    name: API Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: hearth
+          POSTGRES_PASSWORD: hearth_test
+          POSTGRES_DB: hearth_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://hearth:hearth_test@localhost:5432/hearth_test
+      TEST_DATABASE_URL: postgresql://hearth:hearth_test@localhost:5432/hearth_test
+      CLERK_SECRET_KEY: sk_test_fake_for_ci
+      STRIPE_SECRET_KEY: sk_test_fake_for_ci
+      STRIPE_WEBHOOK_SECRET: whsec_fake_for_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+      - run: yarn install --frozen-lockfile
+      - run: yarn workspace @hearth/api db:push
+        env:
+          DATABASE_URL: postgresql://hearth:hearth_test@localhost:5432/hearth_test
+      - run: yarn workspace @hearth/api test
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+      - run: yarn install --frozen-lockfile
+      - run: yarn lint
+
+  build-web:
+    name: Build Web
+    runs-on: ubuntu-latest
+    needs: [typecheck]
+    env:
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_fake_for_ci
+      CLERK_SECRET_KEY: sk_test_fake_for_ci
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+      - run: yarn install --frozen-lockfile
+      - run: yarn workspace @hearth/web build

@@ -1,0 +1,386 @@
+// Round — Database Schema
+// PostgreSQL via Prisma ORM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum SubscriptionTier {
+  FREE      // Round (free)
+  MEMBER    // Round Member
+  FOUNDING  // Founding Member (lifetime)
+}
+
+enum DietaryRestriction {
+  VEGETARIAN
+  VEGAN
+  GLUTEN_FREE
+  DAIRY_FREE
+  NUT_FREE
+  HALAL
+  KOSHER
+  OTHER
+}
+
+enum PortionSize {
+  SMALL    // 1 person
+  STANDARD // 2 people
+  LARGE    // 3–4 people
+}
+
+enum CircleStatus {
+  FORMING   // < 3 members
+  ACTIVE    // 3+ members, running
+  PAUSED    // temporarily paused
+  DISBANDED // no longer active
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum MemberStatus {
+  PENDING // invited, not yet accepted
+  ACTIVE
+  PAUSED  // on temporary break
+  LEFT
+}
+
+enum DayOfWeek {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+enum MealStatus {
+  DRAFT   // not yet posted
+  POSTED  // available to save a seat
+  FULL    // all seats saved
+  DONE    // meals picked up
+  CANCELLED
+}
+
+enum SeatStatus {
+  CONFIRMED
+  PICKED_UP
+  NO_SHOW
+}
+
+enum ReviewType {
+  MEAL_QUALITY
+  PICKUP_EXPERIENCE
+}
+
+enum NotificationType {
+  TURN_REMINDER         // your turn is tomorrow
+  TURN_CONFIRM_REQUEST  // please confirm you're cooking tonight
+  MEAL_POSTED           // someone in your circle posted a meal
+  SEAT_SAVED            // someone saved a seat on your meal
+  PICKUP_REMINDER       // pickup in 1 hour
+  CIRCLE_INVITE         // you've been invited to a circle
+  CIRCLE_MEMBER_JOINED
+  REVIEW_RECEIVED
+  SUBSCRIPTION_EXPIRING
+  SYSTEM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+  TRIALING
+}
+
+// ─────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────
+
+model User {
+  id      String @id @default(cuid())
+  clerkId String @unique
+  email   String @unique
+  name    String
+  avatar  String? // Cloudinary URL
+
+  // Profile
+  bio              String?
+  lat              Float?
+  lng              Float?
+  neighborhoodName String?
+  city             String?
+  state            String?
+
+  // Cooking
+  dietaryRestrictions DietaryRestriction[]
+  allergenNotes       String?   // free text: "severe tree nut allergy — EpiPen on hand"
+  portionSize         PortionSize @default(STANDARD)
+  cookingStyles       String[]  // e.g. ["Italian", "Mexican", "Comfort"]
+  cookingSkillLevel   Int       @default(3) // 1–5
+  containerPolicy     String?   // "I provide containers" / "Bring your own"
+
+  // Trust & reliability
+  reliabilityScore Float @default(1.0) // 0.0–1.0, % of turns fulfilled
+
+  // App
+  subscriptionTier   SubscriptionTier @default(FREE)
+  expoPushToken      String?
+  onboardingComplete Boolean          @default(false)
+  isActive           Boolean          @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  circleMemberships CircleMembership[]
+  circlesCreated    Circle[]           @relation("CircleCreator")
+  mealsCooked       Meal[]             @relation("MealCook")
+  seats             Seat[]
+  reviewsGiven      Review[]           @relation("ReviewGiver")
+  reviewsReceived   Review[]           @relation("ReviewReceiver")
+  notifications     Notification[]
+  subscription      Subscription?
+  matchingProfile   MatchingProfile?
+
+  @@index([clerkId])
+  @@index([lat, lng])
+}
+
+model Circle {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  inviteCode  String       @unique @default(cuid())
+
+  maxSize Int         @default(5)
+  status  CircleStatus @default(FORMING)
+
+  // Location
+  neighborhoodName String?
+  city             String?
+  state            String?
+  lat              Float?
+  lng              Float?
+
+  // Settings
+  requiresApproval Boolean @default(false)
+  isPublic         Boolean @default(false) // discoverable via matching (Round Member+)
+
+  createdById String
+  createdBy   User   @relation("CircleCreator", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships CircleMembership[]
+  meals       Meal[]
+
+  @@index([inviteCode])
+  @@index([lat, lng])
+  @@index([status])
+}
+
+model CircleMembership {
+  id       String @id @default(cuid())
+  circleId String
+  userId   String
+
+  role   MemberRole   @default(MEMBER)
+  status MemberStatus @default(PENDING)
+  turn   DayOfWeek?   // their assigned cook day ("your turn")
+
+  // Reliability tracking
+  turnConfirmedAt    DateTime? // last time they confirmed their upcoming turn
+  reliabilityRate    Float     @default(1.0) // % of assigned turns fulfilled
+  noShowCount        Int       @default(0)
+
+  // Stats
+  totalMealsCooked   Int @default(0)
+  totalMealsReceived Int @default(0)
+
+  joinedAt  DateTime  @default(now())
+  leftAt    DateTime?
+  updatedAt DateTime  @updatedAt
+
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([circleId, userId])
+  @@index([circleId])
+  @@index([userId])
+}
+
+model Meal {
+  id       String @id @default(cuid())
+  circleId String
+  cookId   String
+
+  title       String
+  description String?
+  photo       String? // Cloudinary URL
+
+  cuisineType  String?
+  dietaryTags  DietaryRestriction[]
+  allergenNotes String? // explicit: "Contains: nuts, dairy. Free of: gluten"
+
+  servingsAvailable Int
+  servingsSaved     Int @default(0) // seats saved
+
+  // Container policy (from cook's profile or overridden per meal)
+  containerPolicy String @default("Cook provides containers — keep them, no return needed")
+
+  // Pickup
+  pickupTime     DateTime
+  pickupLocation String   // "Front porch", "Side door, buzz #2B"
+  pickupLat      Float?
+  pickupLng      Float?
+  pickupNotes    String?
+
+  status   MealStatus @default(DRAFT)
+  cookDate DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  circle  Circle   @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  cook    User     @relation("MealCook", fields: [cookId], references: [id])
+  seats   Seat[]
+  reviews Review[]
+
+  @@index([circleId])
+  @@index([cookId])
+  @@index([cookDate])
+  @@index([status])
+}
+
+model Seat {
+  id     String @id @default(cuid())
+  mealId String
+  dinerId String
+
+  portions  Int        @default(1)
+  status    SeatStatus @default(CONFIRMED)
+
+  pickedUpAt DateTime?
+  notes      String?   // "I'll be there at 6:30"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meal  Meal @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  diner User @relation(fields: [dinerId], references: [id])
+
+  @@unique([mealId, dinerId])
+  @@index([mealId])
+  @@index([dinerId])
+}
+
+model Review {
+  id         String @id @default(cuid())
+  mealId     String
+  reviewerId String
+  revieweeId String
+
+  rating  Int // 1–5
+  comment String?
+  type    ReviewType
+
+  createdAt DateTime @default(now())
+
+  meal     Meal @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  reviewer User @relation("ReviewGiver", fields: [reviewerId], references: [id])
+  reviewee User @relation("ReviewReceiver", fields: [revieweeId], references: [id])
+
+  @@unique([mealId, reviewerId, type])
+  @@index([revieweeId])
+  @@index([mealId])
+}
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+
+  type  NotificationType
+  title String
+  body  String
+  data  Json?
+
+  read      Boolean  @default(false)
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
+
+model Subscription {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  stripeCustomerId     String  @unique
+  stripeSubscriptionId String? @unique
+  stripePriceId        String?
+
+  tier   SubscriptionTier   @default(FREE)
+  status SubscriptionStatus @default(ACTIVE)
+
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+
+  isFounding Boolean @default(false) // true for Founding Member (lifetime)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MatchingProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  isLookingForCircle Boolean @default(false)
+  maxDistanceMiles   Float   @default(2.0)
+  preferredCircleSize Int    @default(4) // 3–8
+
+  availableDays DayOfWeek[]
+
+  lastMatchedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

@@ -1,0 +1,30 @@
+{
+  "name": "round",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev:api":    "yarn workspace @round/api dev",
+    "dev:web":    "yarn workspace @round/web dev",
+    "dev:mobile": "yarn workspace @round/mobile start",
+    "build:api":  "yarn workspace @round/api build",
+    "build:web":  "yarn workspace @round/web build",
+    "db:push":    "yarn workspace @round/api db:push",
+    "db:migrate": "yarn workspace @round/api db:migrate",
+    "db:seed":    "yarn workspace @round/api db:seed",
+    "db:studio":  "yarn workspace @round/api db:studio",
+    "lint":       "eslint . --ext .ts,.tsx",
+    "typecheck":  "tsc --noEmit",
+    "test":       "jest"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "yarn": ">=4.0.0"
+  }
+}
