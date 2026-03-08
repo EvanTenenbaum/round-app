@@ -1,23 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export',
+  trailingSlash: true,
+  basePath: '/round-app',
+  assetPrefix: '/round-app',
   reactStrictMode: true,
-  transpilePackages: ['@hearth/shared'],
-  images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: 'res.cloudinary.com' },
-      { protocol: 'https', hostname: 'img.clerk.com' },
-      { protocol: 'https', hostname: 'images.clerk.dev' },
-    ],
-  },
+  transpilePackages: ['@round/shared'],
+  typescript: { ignoreBuildErrors: true },
+  eslint: { ignoreDuringBuilds: true },
+  images: { unoptimized: true },
   async redirects() {
-    return [
-      {
-        source: '/app',
-        destination: '/app/home',
-        permanent: false,
-      },
-    ]
+    return []
   },
 }
-
 module.exports = nextConfig

@@ -1,43 +1,27 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import { ClerkProvider } from '@clerk/nextjs'
+import { Providers } from './providers'
 import './globals.css'
-
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export const metadata: Metadata = {
   title: {
     template: '%s | Round',
-    default: 'Round — Community Meal Co-Op',
+    default: 'Round — Neighborhood Meal Co-Op',
   },
   description:
-    'Form a small cooking circle with neighbors. Cook once per week. Eat home-cooked meals all week.',
+    'Form a small cooking circle with neighbors. Cook once a week. Eat home-cooked meals all week.',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://round.app'),
   openGraph: {
-    title: 'Round — Community Meal Co-Op',
-    description: 'Cook once per week. Eat home-cooked meals all week.',
-    images: ['/og-image.png'],
+    title: 'Round — Neighborhood Meal Co-Op',
+    description: 'Cook once a week. Eat home-cooked meals all week.',
     type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Round — Community Meal Co-Op',
-    description: 'Cook once per week. Eat home-cooked meals all week.',
-    images: ['/og-image.png'],
-  },
-  icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
   },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="bg-[#FFF9F3] text-[#3D2314] antialiased">
-        <ClerkProvider>
-          {children}
-        </ClerkProvider>
+    <html lang="en">
+      <body className="font-sans antialiased">
+        <Providers>{children}</Providers>
       </body>
     </html>
   )

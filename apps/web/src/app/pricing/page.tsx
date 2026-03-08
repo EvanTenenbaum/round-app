@@ -1,4 +1,4 @@
-import { TIER_PRICES, TIER_LABELS } from '@round/shared'
+const TIER_PRICES = { MONTHLY: 7.99, ANNUAL: 59, FOUNDING: 49 }
 
 export default function PricingPage() {
   return (
